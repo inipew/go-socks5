@@ -12,6 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/things-go/go-socks5/bufferpool"
+	"github.com/things-go/go-socks5/handler"
+	"github.com/things-go/go-socks5/resolver"
+	"github.com/things-go/go-socks5/rule"
 	"github.com/things-go/go-socks5/statute"
 )
 
@@ -48,8 +51,8 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Make proxy server
 	proxySrv := &Server{
-		rules:         NewPermitAll(),
-		resolver:      DNSResolver{},
+		rules:         rule.NewPermitAll(),
+		resolver:      resolver.DNSResolver{},
 		logger:        NewLogger(zerolog.New(os.Stdout)),
 		tcpBufferPool: bufferpool.NewPool(32 * 1024),
 		udpBufferPool: bufferpool.NewPool(32 * 1024),
@@ -65,7 +68,7 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Handle the request
 	rsp := new(MockConn)
-	req, err := ParseRequest(buf)
+	req, err := handler.ParseRequest(buf)
 	require.NoError(t, err)
 
 	err = proxySrv.handleRequest(rsp, req)
@@ -106,8 +109,8 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Make server
 	s := &Server{
-		rules:         NewPermitNone(),
-		resolver:      DNSResolver{},
+		rules:         rule.NewPermitNone(),
+		resolver:      resolver.DNSResolver{},
 		logger:        NewLogger(zerolog.New(os.Stdout)),
 		tcpBufferPool: bufferpool.NewPool(32 * 1024),
 		udpBufferPool: bufferpool.NewPool(32 * 1024),
@@ -124,7 +127,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Handle the request
 	rsp := new(MockConn)
-	req, err := ParseRequest(buf)
+	req, err := handler.ParseRequest(buf)
 	require.NoError(t, err)
 
 	err = s.handleRequest(rsp, req)

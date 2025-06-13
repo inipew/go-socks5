@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -67,6 +68,8 @@ type Server struct {
 	userConnectMiddlewares   MiddlewareChain
 	userBindMiddlewares      MiddlewareChain
 	userAssociateMiddlewares MiddlewareChain
+	// timeout for handling each connection and dialing out
+	timeout time.Duration
 }
 
 // NewServer creates a new Server
@@ -133,6 +136,10 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	var authContext *auth.AuthContext
 
 	defer conn.Close() // nolint: errcheck
+	if sf.timeout > 0 {
+		conn.SetDeadline(time.Now().Add(sf.timeout)) //nolint: errcheck
+		defer conn.SetDeadline(time.Time{})          //nolint: errcheck
+	}
 
 	bufConn := bufio.NewReader(conn)
 

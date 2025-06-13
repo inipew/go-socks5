@@ -18,6 +18,11 @@ func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 	var err error
 
 	ctx := context.Background()
+	if sf.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, sf.timeout)
+		defer cancel()
+	}
 	// Resolve the address if we have a FQDN
 	dest := req.RawDestAddr
 	if dest.FQDN != "" {
@@ -94,7 +99,8 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 		dial := sf.dial
 		if dial == nil {
 			dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
-				return net.Dial(net_, addr)
+				var d net.Dialer
+				return d.DialContext(ctx, net_, addr)
 			}
 		}
 		target, err = dial(ctx, "tcp", request.DestAddr.String())
@@ -149,8 +155,9 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 	// Attempt to connect
 	dial := sf.dial
 	if dial == nil {
-		dial = func(_ context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
+		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, net_, addr)
 		}
 	}
 	bindLn, err := net.ListenUDP("udp", nil)

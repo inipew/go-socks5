@@ -17,6 +17,8 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/things-go/go-socks5/auth"
+	"github.com/things-go/go-socks5/handler"
 	"github.com/things-go/go-socks5/statute"
 )
 

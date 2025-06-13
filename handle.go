@@ -13,6 +13,10 @@ import (
 	"github.com/things-go/go-socks5/statute"
 )
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
 // handleRequest is used for request processing after authentication
 func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 	var err error

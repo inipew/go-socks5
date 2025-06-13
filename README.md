@@ -26,7 +26,7 @@ The package has the following features:
 - Rules to do granular filtering of commands
 - Custom DNS resolution
 - Custom goroutine pool
-- buffer pool design and optional custom buffer pool
+- buffer pool design and optional custom buffer pool for TCP and UDP
 - Custom logger
 
 ### TODO

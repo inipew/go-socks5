@@ -5,7 +5,11 @@ import (
 	"io"
 	"net"
 
+	"github.com/things-go/go-socks5/auth"
 	"github.com/things-go/go-socks5/bufferpool"
+	"github.com/things-go/go-socks5/handler"
+	"github.com/things-go/go-socks5/resolver"
+	"github.com/things-go/go-socks5/rule"
 )
 
 // Option user's option
@@ -22,7 +26,7 @@ func WithBufferPool(bufferPool bufferpool.BufPool) Option {
 // WithAuthMethods can be provided to implement custom authentication
 // By default, "auth-less" mode is enabled.
 // For password-based auth use UserPassAuthenticator.
-func WithAuthMethods(authMethods []Authenticator) Option {
+func WithAuthMethods(authMethods []auth.Authenticator) Option {
 	return func(s *Server) {
 		s.authMethods = append(s.authMethods, authMethods...)
 	}
@@ -31,7 +35,7 @@ func WithAuthMethods(authMethods []Authenticator) Option {
 // WithCredential If provided, username/password authentication is enabled,
 // by appending a UserPassAuthenticator to AuthMethods. If not provided,
 // and AUthMethods is nil, then "auth-less" mode is enabled.
-func WithCredential(cs CredentialStore) Option {
+func WithCredential(cs auth.CredentialStore) Option {
 	return func(s *Server) {
 		s.credentials = cs
 	}
@@ -39,7 +43,7 @@ func WithCredential(cs CredentialStore) Option {
 
 // WithResolver can be provided to do custom name resolution.
 // Defaults to DNSResolver if not provided.
-func WithResolver(res NameResolver) Option {
+func WithResolver(res resolver.NameResolver) Option {
 	return func(s *Server) {
 		s.resolver = res
 	}
@@ -47,7 +51,7 @@ func WithResolver(res NameResolver) Option {
 
 // WithRule is provided to enable custom logic around permitting
 // various commands. If not provided, NewPermitAll is used.
-func WithRule(rule RuleSet) Option {
+func WithRule(rule rule.RuleSet) Option {
 	return func(s *Server) {
 		s.rules = rule
 	}
@@ -56,7 +60,7 @@ func WithRule(rule RuleSet) Option {
 // WithRewriter can be used to transparently rewrite addresses.
 // This is invoked before the RuleSet is invoked.
 // Defaults to NoRewrite.
-func WithRewriter(rew AddressRewriter) Option {
+func WithRewriter(rew handler.AddressRewriter) Option {
 	return func(s *Server) {
 		s.rewriter = rew
 	}
@@ -90,7 +94,7 @@ func WithDial(dial func(ctx context.Context, network, addr string) (net.Conn, er
 
 // WithDialAndRequest Optional function for dialing out with the access of request detail.
 func WithDialAndRequest(
-	dial func(ctx context.Context, network, addr string, request *Request) (net.Conn, error),
+	dial func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error),
 ) Option {
 	return func(s *Server) {
 		s.dialWithRequest = dial
@@ -105,37 +109,37 @@ func WithGPool(pool GPool) Option {
 }
 
 // WithConnectHandle is used to handle a user's connect command
-func WithConnectHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
+func WithConnectHandle(h func(ctx context.Context, writer io.Writer, request *handler.Request) error) Option {
 	return func(s *Server) {
 		s.userConnectHandle = h
 	}
 }
 
 // WithBindHandle is used to handle a user's bind command
-func WithBindHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
+func WithBindHandle(h func(ctx context.Context, writer io.Writer, request *handler.Request) error) Option {
 	return func(s *Server) {
 		s.userBindHandle = h
 	}
 }
 
 // WithAssociateHandle is used to handle a user's associate command
-func WithAssociateHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
+func WithAssociateHandle(h func(ctx context.Context, writer io.Writer, request *handler.Request) error) Option {
 	return func(s *Server) {
 		s.userAssociateHandle = h
 	}
 }
 
 // Handler is used to handle a user's commands
-type Handler func(ctx context.Context, writer io.Writer, request *Request) error
+type Handler func(ctx context.Context, writer io.Writer, request *handler.Request) error
 
 // WithMiddleware is used to add interceptors in chain
-type Middleware func(ctx context.Context, writer io.Writer, request *Request) error
+type Middleware func(ctx context.Context, writer io.Writer, request *handler.Request) error
 
 // MiddlewareChain is used to add interceptors in chain
 type MiddlewareChain []Middleware
 
 // Execute is used to add interceptors in chain
-func (m MiddlewareChain) Execute(ctx context.Context, writer io.Writer, request *Request, last Handler) error {
+func (m MiddlewareChain) Execute(ctx context.Context, writer io.Writer, request *handler.Request, last Handler) error {
 	if len(m) == 0 {
 		return nil
 	}

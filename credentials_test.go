@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/things-go/go-socks5/auth"
 )
 
 func TestStaticCredentials(t *testing.T) {
-	creds := StaticCredentials{
+	creds := auth.StaticCredentials{
 		"foo": "bar",
 		"baz": "",
 	}

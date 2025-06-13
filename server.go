@@ -10,7 +10,11 @@ import (
 	"log"
 	"net"
 
+	"github.com/things-go/go-socks5/auth"
 	"github.com/things-go/go-socks5/bufferpool"
+	"github.com/things-go/go-socks5/handler"
+	"github.com/things-go/go-socks5/resolver"
+	"github.com/things-go/go-socks5/rule"
 	"github.com/things-go/go-socks5/statute"
 )
 
@@ -25,21 +29,21 @@ type Server struct {
 	// authMethods can be provided to implement authentication
 	// By default, "no-auth" mode is enabled.
 	// For password-based auth use UserPassAuthenticator.
-	authMethods []Authenticator
+	authMethods []auth.Authenticator
 	// If provided, username/password authentication is enabled,
 	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
 	// and authMethods is nil, then "no-auth" mode is enabled.
-	credentials CredentialStore
+	credentials auth.CredentialStore
 	// resolver can be provided to do custom name resolution.
 	// Defaults to DNSResolver if not provided.
-	resolver NameResolver
+	resolver resolver.NameResolver
 	// rules is provided to enable custom logic around permitting
 	// various commands. If not provided, NewPermitAll is used.
-	rules RuleSet
+	rules rule.RuleSet
 	// rewriter can be used to transparently rewrite addresses.
 	// This is invoked before the RuleSet is invoked.
 	// Defaults to NoRewrite.
-	rewriter AddressRewriter
+	rewriter handler.AddressRewriter
 	// bindIP is used for bind or udp associate
 	bindIP net.IP
 	// logger can be used to provide a custom log target.
@@ -49,15 +53,15 @@ type Server struct {
 	// The callback set by dialWithRequest will be called first.
 	dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	// Optional function for dialing out with the access of request detail.
-	dialWithRequest func(ctx context.Context, network, addr string, request *Request) (net.Conn, error)
+	dialWithRequest func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error)
 	// buffer pool
 	bufferPool bufferpool.BufPool
 	// goroutine pool
 	gPool GPool
 	// user's handle
-	userConnectHandle   func(ctx context.Context, writer io.Writer, request *Request) error
-	userBindHandle      func(ctx context.Context, writer io.Writer, request *Request) error
-	userAssociateHandle func(ctx context.Context, writer io.Writer, request *Request) error
+	userConnectHandle   func(ctx context.Context, writer io.Writer, request *handler.Request) error
+	userBindHandle      func(ctx context.Context, writer io.Writer, request *handler.Request) error
+	userAssociateHandle func(ctx context.Context, writer io.Writer, request *handler.Request) error
 	// user's middleware
 	userConnectMiddlewares   MiddlewareChain
 	userBindMiddlewares      MiddlewareChain
@@ -67,10 +71,10 @@ type Server struct {
 // NewServer creates a new Server
 func NewServer(opts ...Option) *Server {
 	srv := &Server{
-		authMethods: []Authenticator{},
-		bufferPool:  bufferpool.NewPool(64 * 1024),
-		resolver:    DNSResolver{},
-		rules:       NewPermitAll(),
+		authMethods: []auth.Authenticator{},
+		bufferPool:  bufferpool.NewPool(32 * 1024),
+		resolver:    resolver.DNSResolver{},
+		rules:       rule.NewPermitAll(),
 		logger:      NewLogger(log.New(io.Discard, "socks5: ", log.LstdFlags)),
 	}
 
@@ -80,10 +84,10 @@ func NewServer(opts ...Option) *Server {
 
 	// Ensure we have at least one authentication method enabled
 	if (len(srv.authMethods) == 0) && srv.credentials != nil {
-		srv.authMethods = []Authenticator{&UserPassAuthenticator{srv.credentials}}
+		srv.authMethods = []auth.Authenticator{&auth.UserPassAuthenticator{Credentials: srv.credentials}}
 	}
 	if len(srv.authMethods) == 0 {
-		srv.authMethods = []Authenticator{&NoAuthAuthenticator{}}
+		srv.authMethods = []auth.Authenticator{&auth.NoAuthAuthenticator{}}
 	}
 
 	return srv
@@ -125,7 +129,7 @@ func (sf *Server) Serve(l net.Listener) error {
 
 // ServeConn is used to serve a single connection.
 func (sf *Server) ServeConn(conn net.Conn) error {
-	var authContext *AuthContext
+	var authContext *auth.AuthContext
 
 	defer conn.Close() // nolint: errcheck
 
@@ -150,10 +154,10 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// The client request detail
-	request, err := ParseRequest(bufConn)
+	request, err := handler.ParseRequest(bufConn)
 	if err != nil {
 		if errors.Is(err, statute.ErrUnrecognizedAddrType) {
-			if err := SendReply(conn, statute.RepAddrTypeNotSupported, nil); err != nil {
+			if err := handler.SendReply(conn, statute.RepAddrTypeNotSupported, nil); err != nil {
 				return fmt.Errorf("failed to send reply %w", err)
 			}
 		}
@@ -163,7 +167,7 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	if request.Request.Command != statute.CommandConnect && // nolint: staticcheck
 		request.Request.Command != statute.CommandBind && // nolint: staticcheck
 		request.Request.Command != statute.CommandAssociate { // nolint: staticcheck
-		if err := SendReply(conn, statute.RepCommandNotSupported, nil); err != nil {
+		if err := handler.SendReply(conn, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unrecognized command[%d]", request.Request.Command) // nolint: staticcheck
@@ -178,7 +182,7 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 
 // authenticate is used to handle connection authentication
 func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader,
-	userAddr string, methods []byte) (*AuthContext, error) {
+	userAddr string, methods []byte) (*auth.AuthContext, error) {
 	// Select a usable method
 	for _, auth := range sf.authMethods {
 		for _, method := range methods {

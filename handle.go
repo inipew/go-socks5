@@ -9,46 +9,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/things-go/go-socks5/handler"
 	"github.com/things-go/go-socks5/statute"
 )
 
-// AddressRewriter is used to rewrite a destination transparently
-type AddressRewriter interface {
-	Rewrite(ctx context.Context, request *Request) (context.Context, *statute.AddrSpec)
-}
-
-// A Request represents request received by a server
-type Request struct {
-	statute.Request
-	// AuthContext provided during negotiation
-	AuthContext *AuthContext
-	// LocalAddr of the network server listen
-	LocalAddr net.Addr
-	// RemoteAddr of the network that sent the request
-	RemoteAddr net.Addr
-	// DestAddr of the actual destination (might be affected by rewrite)
-	DestAddr *statute.AddrSpec
-	// Reader connect of request
-	Reader io.Reader
-	// RawDestAddr of the desired destination
-	RawDestAddr *statute.AddrSpec
-}
-
-// ParseRequest creates a new Request from the tcp connection
-func ParseRequest(bufConn io.Reader) (*Request, error) {
-	hd, err := statute.ParseRequest(bufConn)
-	if err != nil {
-		return nil, err
-	}
-	return &Request{
-		Request:     hd,
-		RawDestAddr: &hd.DstAddr,
-		Reader:      bufConn,
-	}, nil
-}
-
 // handleRequest is used for request processing after authentication
-func (sf *Server) handleRequest(write io.Writer, req *Request) error {
+func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 	var err error
 
 	ctx := context.Background()
@@ -57,7 +23,7 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 	if dest.FQDN != "" {
 		ctx, dest.IP, err = sf.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
-			if err := SendReply(write, statute.RepHostUnreachable, nil); err != nil {
+			if err := handler.SendReply(write, statute.RepHostUnreachable, nil); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
@@ -74,7 +40,7 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 	var ok bool
 	ctx, ok = sf.rules.Allow(ctx, req)
 	if !ok {
-		if err := SendReply(write, statute.RepRuleFailure, nil); err != nil {
+		if err := handler.SendReply(write, statute.RepRuleFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
@@ -108,7 +74,7 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 			return sf.userAssociateMiddlewares.Execute(ctx, write, req, last)
 		}
 	default:
-		if err := SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
+		if err := handler.SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
@@ -117,7 +83,7 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 }
 
 // handleConnect is used to handle a connect command
-func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *Request) error {
+func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *handler.Request) error {
 	// Attempt to connect
 	var target net.Conn
 	var err error
@@ -141,7 +107,7 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = statute.RepNetworkUnreachable
 		}
-		if err := SendReply(writer, resp, nil); err != nil {
+		if err := handler.SendReply(writer, resp, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v failed, %v", request.RawDestAddr, err)
@@ -149,7 +115,7 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 	defer target.Close() // nolint: errcheck
 
 	// Send success
-	if err := SendReply(writer, statute.RepSuccess, target.LocalAddr()); err != nil {
+	if err := handler.SendReply(writer, statute.RepSuccess, target.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
@@ -170,18 +136,16 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 }
 
 // handleBind is used to handle a connect command
-func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) error {
+func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *handler.Request) error {
 	// TODO: Support bind
-	if err := SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
+	if err := handler.SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
 	}
 	return nil
 }
 
 // handleAssociate is used to handle a connect command
-func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request *Request) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request *handler.Request) error {
 	// Attempt to connect
 	dial := sf.dial
 	if dial == nil {
@@ -191,7 +155,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 	}
 	bindLn, err := net.ListenUDP("udp", nil)
 	if err != nil {
-		if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
+		if err := handler.SendReply(writer, statute.RepServerFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("listen udp failed, %v", err)
@@ -199,7 +163,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 
 	sf.logger.Errorf("client want to used addr %v, listen addr: %s", request.DestAddr, bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client used
-	if err = SendReply(writer, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
+	if err = handler.SendReply(writer, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
@@ -323,47 +287,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 	}
 }
 
-// SendReply is used to send a reply message
-// rep: reply status see statute's statute file
-func SendReply(w io.Writer, rep uint8, bindAddr net.Addr) error {
-	rsp := statute.Reply{
-		Version:  statute.VersionSocks5,
-		Response: rep,
-		BndAddr: statute.AddrSpec{
-			AddrType: statute.ATYPIPv4,
-			IP:       net.IPv4zero,
-			Port:     0,
-		},
-	}
-
-	if rsp.Response == statute.RepSuccess {
-		if tcpAddr, ok := bindAddr.(*net.TCPAddr); ok && tcpAddr != nil {
-			rsp.BndAddr.IP = tcpAddr.IP
-			rsp.BndAddr.Port = tcpAddr.Port
-		} else if udpAddr, ok := bindAddr.(*net.UDPAddr); ok && udpAddr != nil {
-			rsp.BndAddr.IP = udpAddr.IP
-			rsp.BndAddr.Port = udpAddr.Port
-		} else {
-			rsp.Response = statute.RepAddrTypeNotSupported
-		}
-
-		if rsp.BndAddr.IP.To4() != nil {
-			rsp.BndAddr.AddrType = statute.ATYPIPv4
-		} else if rsp.BndAddr.IP.To16() != nil {
-			rsp.BndAddr.AddrType = statute.ATYPIPv6
-		}
-	}
-	// Send the message
-	_, err := w.Write(rsp.Bytes())
-	return err
-}
-
-type closeWriter interface {
-	CloseWrite() error
-}
-
-// Proxy is used to suffle data from src to destination, and sends errors
-// down a dedicated channel
+// Proxy is used to shuffle data between src and dst using the internal buffer pool.
 func (sf *Server) Proxy(dst io.Writer, src io.Reader) error {
 	return sf.ProxyContext(context.Background(), dst, src)
 }

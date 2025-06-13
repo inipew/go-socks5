@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
+
+	"github.com/rs/zerolog"
 
 	"github.com/things-go/go-socks5/auth"
 	"github.com/things-go/go-socks5/bufferpool"
@@ -75,7 +76,7 @@ func NewServer(opts ...Option) *Server {
 		bufferPool:  bufferpool.NewPool(32 * 1024),
 		resolver:    resolver.DNSResolver{},
 		rules:       rule.NewPermitAll(),
-		logger:      NewLogger(log.New(io.Discard, "socks5: ", log.LstdFlags)),
+		logger:      NewLogger(zerolog.New(io.Discard)),
 	}
 
 	for _, opt := range opts {
@@ -150,7 +151,7 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	}
 	authContext, err = sf.authenticate(conn, bufConn, userAddr, mr.Methods)
 	if err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
+		return fmt.Errorf("%w: %w", ErrAuthFailed, err)
 	}
 
 	// The client request detail
@@ -158,19 +159,19 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	if err != nil {
 		if errors.Is(err, statute.ErrUnrecognizedAddrType) {
 			if err := handler.SendReply(conn, statute.RepAddrTypeNotSupported, nil); err != nil {
-				return fmt.Errorf("failed to send reply %w", err)
+				return fmt.Errorf("%w: %w", ErrSendReply, err)
 			}
 		}
-		return fmt.Errorf("failed to read destination address, %w", err)
+		return fmt.Errorf("%w: %w", ErrReadDestination, err)
 	}
 
 	if request.Request.Command != statute.CommandConnect && // nolint: staticcheck
 		request.Request.Command != statute.CommandBind && // nolint: staticcheck
 		request.Request.Command != statute.CommandAssociate { // nolint: staticcheck
 		if err := handler.SendReply(conn, statute.RepCommandNotSupported, nil); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
+			return fmt.Errorf("%w: %w", ErrSendReply, err)
 		}
-		return fmt.Errorf("unrecognized command[%d]", request.Request.Command) // nolint: staticcheck
+		return fmt.Errorf("%w: %d", ErrUnsupportedCommand, request.Request.Command) // nolint: staticcheck
 	}
 
 	request.AuthContext = authContext

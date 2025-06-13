@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"os"
 	"testing"
@@ -15,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/proxy"
+
+	"github.com/rs/zerolog"
 
 	"github.com/things-go/go-socks5/statute"
 )
@@ -43,7 +44,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		srv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
@@ -139,7 +140,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		srv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
@@ -255,7 +256,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		srv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
@@ -359,7 +360,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		srv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
@@ -467,7 +468,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		proxySrv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 		)
 		// Start listening
 		go func() {
@@ -568,7 +569,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 		proxySrv := NewServer(
 			WithAuthMethods([]auth.Authenticator{cator}),
-			WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+			WithLogger(NewLogger(zerolog.New(os.Stdout))),
 			WithAssociateMiddleware(func(ctx context.Context, writer io.Writer, request *handler.Request) error {
 				require.Equal(t, request.DestAddr.Port, 12499)
 				middlewareCalled = true
@@ -667,7 +668,7 @@ func Test_SocksWithProxy(t *testing.T) {
 	cator := auth.UserPassAuthenticator{Credentials: auth.StaticCredentials{"foo": "bar"}}
 	serv := NewServer(
 		WithAuthMethods([]auth.Authenticator{cator}),
-		WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+		WithLogger(NewLogger(zerolog.New(os.Stdout))),
 	)
 	// Start socks server
 	go func() {

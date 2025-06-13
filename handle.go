@@ -24,9 +24,9 @@ func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 		ctx, dest.IP, err = sf.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
 			if err := handler.SendReply(write, statute.RepHostUnreachable, nil); err != nil {
-				return fmt.Errorf("failed to send reply, %v", err)
+				return fmt.Errorf("%w: %w", ErrSendReply, err)
 			}
-			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
+			return fmt.Errorf("%w [%v]: %w", ErrResolveDestination, dest.FQDN, err)
 		}
 	}
 
@@ -41,9 +41,9 @@ func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 	ctx, ok = sf.rules.Allow(ctx, req)
 	if !ok {
 		if err := handler.SendReply(write, statute.RepRuleFailure, nil); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
+			return fmt.Errorf("%w: %w", ErrSendReply, err)
 		}
-		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
+		return fmt.Errorf("%w: %v", ErrBindBlocked, req.RawDestAddr)
 	}
 
 	var last Handler
@@ -75,9 +75,9 @@ func (sf *Server) handleRequest(write io.Writer, req *handler.Request) error {
 		}
 	default:
 		if err := handler.SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
+			return fmt.Errorf("%w: %w", ErrSendReply, err)
 		}
-		return fmt.Errorf("unsupported command[%v]", req.Command)
+		return fmt.Errorf("%w: %v", ErrUnsupportedCommand, req.Command)
 	}
 	return last(ctx, write, req)
 }
@@ -108,15 +108,15 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 			resp = statute.RepNetworkUnreachable
 		}
 		if err := handler.SendReply(writer, resp, nil); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
+			return fmt.Errorf("%w: %w", ErrSendReply, err)
 		}
-		return fmt.Errorf("connect to %v failed, %v", request.RawDestAddr, err)
+		return fmt.Errorf("%w to %v: %w", ErrConnectFailed, request.RawDestAddr, err)
 	}
 	defer target.Close() // nolint: errcheck
 
 	// Send success
 	if err := handler.SendReply(writer, statute.RepSuccess, target.LocalAddr()); err != nil {
-		return fmt.Errorf("failed to send reply, %v", err)
+		return fmt.Errorf("%w: %w", ErrSendReply, err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -139,7 +139,7 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *handler.Request) error {
 	// TODO: Support bind
 	if err := handler.SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
-		return fmt.Errorf("failed to send reply: %v", err)
+		return fmt.Errorf("%w: %w", ErrSendReply, err)
 	}
 	return nil
 }
@@ -156,15 +156,15 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 	bindLn, err := net.ListenUDP("udp", nil)
 	if err != nil {
 		if err := handler.SendReply(writer, statute.RepServerFailure, nil); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
+			return fmt.Errorf("%w: %w", ErrSendReply, err)
 		}
-		return fmt.Errorf("listen udp failed, %v", err)
+		return fmt.Errorf("%w: %w", ErrListenUDPFailed, err)
 	}
 
 	sf.logger.Errorf("client want to used addr %v, listen addr: %s", request.DestAddr, bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client used
 	if err = handler.SendReply(writer, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
-		return fmt.Errorf("failed to send reply, %v", err)
+		return fmt.Errorf("%w: %w", ErrSendReply, err)
 	}
 
 	sf.goFunc(func() {

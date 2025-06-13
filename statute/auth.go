@@ -1,14 +1,14 @@
 package statute
 
 import (
-	"fmt"
+	"errors"
 	"io"
 )
 
 // auth error defined
 var (
-	ErrUserAuthFailed  = fmt.Errorf("user authentication failed")
-	ErrNoSupportedAuth = fmt.Errorf("no supported authentication mechanism")
+	ErrUserAuthFailed  = errors.New("user authentication failed")
+	ErrNoSupportedAuth = errors.New("no supported authentication mechanism")
 )
 
 // UserPassRequest is the negotiation user's password request packet

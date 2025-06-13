@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -13,6 +14,7 @@ func main() {
 	logger := zerolog.New(os.Stdout)
 	server := socks5.NewServer(
 		socks5.WithLogger(socks5.NewLogger(logger)),
+		socks5.WithTimeout(time.Minute),
 	)
 
 	// Create SOCKS5 proxy on localhost port 8000

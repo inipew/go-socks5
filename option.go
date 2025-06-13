@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"time"
 
 	"github.com/things-go/go-socks5/auth"
 	"github.com/things-go/go-socks5/bufferpool"
@@ -120,6 +121,13 @@ func WithDialAndRequest(
 func WithGPool(pool GPool) Option {
 	return func(s *Server) {
 		s.gPool = pool
+	}
+}
+
+// WithTimeout sets a timeout for handling each connection and dialing out.
+func WithTimeout(d time.Duration) Option {
+	return func(s *Server) {
+		s.timeout = d
 	}
 }
 

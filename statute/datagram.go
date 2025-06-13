@@ -56,7 +56,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		da.DstAddr.Port = int(binary.BigEndian.Uint16((b[headLen-2:])))
 	case ATYPIPv6:
 		headLen += net.IPv6len + 2
-		if len(b) <= headLen {
+		if len(b) < headLen {
 			err = errors.New("datagram to short")
 			return
 		}
@@ -66,7 +66,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 	case ATYPDomain:
 		addrLen := int(b[4])
 		headLen += 1 + addrLen + 2
-		if len(b) <= headLen {
+		if len(b) < headLen {
 			err = errors.New("datagram to short")
 			return
 		}

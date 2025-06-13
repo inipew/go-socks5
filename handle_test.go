@@ -48,10 +48,11 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Make proxy server
 	proxySrv := &Server{
-		rules:      NewPermitAll(),
-		resolver:   DNSResolver{},
-		logger:     NewLogger(zerolog.New(os.Stdout)),
-		bufferPool: bufferpool.NewPool(32 * 1024),
+		rules:         NewPermitAll(),
+		resolver:      DNSResolver{},
+		logger:        NewLogger(zerolog.New(os.Stdout)),
+		tcpBufferPool: bufferpool.NewPool(32 * 1024),
+		udpBufferPool: bufferpool.NewPool(32 * 1024),
 	}
 
 	// Create the connect request
@@ -105,10 +106,11 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Make server
 	s := &Server{
-		rules:      NewPermitNone(),
-		resolver:   DNSResolver{},
-		logger:     NewLogger(zerolog.New(os.Stdout)),
-		bufferPool: bufferpool.NewPool(32 * 1024),
+		rules:         NewPermitNone(),
+		resolver:      DNSResolver{},
+		logger:        NewLogger(zerolog.New(os.Stdout)),
+		tcpBufferPool: bufferpool.NewPool(32 * 1024),
+		udpBufferPool: bufferpool.NewPool(32 * 1024),
 	}
 
 	// Create the connect request

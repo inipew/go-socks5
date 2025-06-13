@@ -55,8 +55,10 @@ type Server struct {
 	dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	// Optional function for dialing out with the access of request detail.
 	dialWithRequest func(ctx context.Context, network, addr string, request *handler.Request) (net.Conn, error)
-	// buffer pool
-	bufferPool bufferpool.BufPool
+	// tcpBufferPool is used for TCP connection proxying
+	tcpBufferPool bufferpool.BufPool
+	// udpBufferPool is used for UDP associate handling
+	udpBufferPool bufferpool.BufPool
 	// goroutine pool
 	gPool GPool
 	// user's handle
@@ -72,11 +74,12 @@ type Server struct {
 // NewServer creates a new Server
 func NewServer(opts ...Option) *Server {
 	srv := &Server{
-		authMethods: []auth.Authenticator{},
-		bufferPool:  bufferpool.NewPool(32 * 1024),
-		resolver:    resolver.DNSResolver{},
-		rules:       rule.NewPermitAll(),
-		logger:      NewLogger(zerolog.New(io.Discard)),
+		authMethods:   []auth.Authenticator{},
+		tcpBufferPool: bufferpool.NewPool(32 * 1024),
+		udpBufferPool: bufferpool.NewPool(32 * 1024),
+		resolver:      resolver.DNSResolver{},
+		rules:         rule.NewPermitAll(),
+		logger:        NewLogger(zerolog.New(io.Discard)),
 	}
 
 	for _, opt := range opts {

@@ -169,9 +169,9 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 
 	sf.goFunc(func() {
 		conns := sync.Map{}
-		bufPool := sf.bufferPool.Get()
+		bufPool := sf.udpBufferPool.Get()
 		defer func() {
-			sf.bufferPool.Put(bufPool)
+			sf.udpBufferPool.Put(bufPool)
 			bindLn.Close() // nolint: errcheck
 			conns.Range(func(key, value any) bool {
 				if connTarget, ok := value.(net.Conn); !ok {
@@ -219,13 +219,13 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 				conns.Store(connKey, targetNew)
 				// read from remote server and write to original client
 				sf.goFunc(func() {
-					bufPool := sf.bufferPool.Get()
-					tmpBufPool := sf.bufferPool.Get()
+					bufPool := sf.udpBufferPool.Get()
+					tmpBufPool := sf.udpBufferPool.Get()
 					defer func() {
 						targetNew.Close() // nolint: errcheck
 						conns.Delete(connKey)
-						sf.bufferPool.Put(bufPool)
-						sf.bufferPool.Put(tmpBufPool)
+						sf.udpBufferPool.Put(bufPool)
+						sf.udpBufferPool.Put(tmpBufPool)
 					}()
 
 					for {
@@ -266,8 +266,8 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 		}
 	})
 
-	buf := sf.bufferPool.Get()
-	defer sf.bufferPool.Put(buf)
+	buf := sf.udpBufferPool.Get()
+	defer sf.udpBufferPool.Put(buf)
 
 	for {
 		select {
@@ -294,8 +294,8 @@ func (sf *Server) Proxy(dst io.Writer, src io.Reader) error {
 
 // ProxyContext copies data from src to dst respecting ctx.
 func (sf *Server) ProxyContext(ctx context.Context, dst io.Writer, src io.Reader) error {
-	buf := sf.bufferPool.Get()
-	defer sf.bufferPool.Put(buf)
+	buf := sf.tcpBufferPool.Get()
+	defer sf.tcpBufferPool.Put(buf)
 	for {
 		select {
 		case <-ctx.Done():

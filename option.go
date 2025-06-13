@@ -15,11 +15,26 @@ import (
 // Option user's option
 type Option func(s *Server)
 
-// WithBufferPool can be provided to implement custom buffer pool
-// By default, buffer pool use size is 32k
+// WithBufferPool can be provided to set custom buffer pool for both TCP and UDP
+// By default, buffer pool size is 32k
 func WithBufferPool(bufferPool bufferpool.BufPool) Option {
 	return func(s *Server) {
-		s.bufferPool = bufferPool
+		s.tcpBufferPool = bufferPool
+		s.udpBufferPool = bufferPool
+	}
+}
+
+// WithBufferPoolTCP sets the buffer pool used for TCP proxying
+func WithBufferPoolTCP(bufferPool bufferpool.BufPool) Option {
+	return func(s *Server) {
+		s.tcpBufferPool = bufferPool
+	}
+}
+
+// WithBufferPoolUDP sets the buffer pool used for UDP associate
+func WithBufferPoolUDP(bufferPool bufferpool.BufPool) Option {
+	return func(s *Server) {
+		s.udpBufferPool = bufferPool
 	}
 }
 

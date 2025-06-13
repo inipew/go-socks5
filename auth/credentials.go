@@ -1,4 +1,4 @@
-package socks5
+package auth
 
 // CredentialStore is used to support user/pass authentication optional network addr
 // if you want to limit user network addr,you can refuse it.

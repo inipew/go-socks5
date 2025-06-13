@@ -1,25 +1,23 @@
 package socks5
 
-import (
-	"log"
-)
+import "github.com/rs/zerolog"
 
-// Logger is used to provide debug logger
+// Logger is used to provide debug log
 type Logger interface {
 	Errorf(format string, arg ...interface{})
 }
 
-// Std std logger
-type Std struct {
-	*log.Logger
+// Zero is a zerolog adapter implementing Logger
+type Zero struct {
+	zerolog.Logger
 }
 
-// NewLogger new std logger with log.logger
-func NewLogger(l *log.Logger) *Std {
-	return &Std{l}
+// NewLogger creates a new zerolog adapter
+func NewLogger(l zerolog.Logger) *Zero {
+	return &Zero{Logger: l}
 }
 
-// Errorf implement interface Logger
-func (sf Std) Errorf(format string, args ...interface{}) {
-	sf.Printf("[E]: "+format, args...)
+// Errorf implements the Logger interface
+func (z *Zero) Errorf(format string, args ...interface{}) {
+	z.Logger.Error().Msgf(format, args...)
 }

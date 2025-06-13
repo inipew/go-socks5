@@ -3,10 +3,11 @@ package socks5
 import (
 	"bytes"
 	"io"
-	"log"
 	"net"
 	"os"
 	"testing"
+
+	"github.com/rs/zerolog"
 
 	"github.com/stretchr/testify/require"
 
@@ -49,7 +50,7 @@ func TestRequest_Connect(t *testing.T) {
 	proxySrv := &Server{
 		rules:      NewPermitAll(),
 		resolver:   DNSResolver{},
-		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+		logger:     NewLogger(zerolog.New(os.Stdout)),
 		bufferPool: bufferpool.NewPool(32 * 1024),
 	}
 
@@ -106,7 +107,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	s := &Server{
 		rules:      NewPermitNone(),
 		resolver:   DNSResolver{},
-		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+		logger:     NewLogger(zerolog.New(os.Stdout)),
 		bufferPool: bufferpool.NewPool(32 * 1024),
 	}
 

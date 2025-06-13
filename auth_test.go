@@ -8,13 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/things-go/go-socks5/auth"
 	"github.com/things-go/go-socks5/statute"
 )
 
 func TestNoAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
 	rsp := new(bytes.Buffer)
-	cator := NoAuthAuthenticator{}
+	cator := auth.NoAuthAuthenticator{}
 
 	ctx, err := cator.Authenticate(req, rsp, "")
 	require.NoError(t, err)
@@ -25,8 +26,8 @@ func TestNoAuth(t *testing.T) {
 func TestPasswordAuth_Valid(t *testing.T) {
 	req := bytes.NewBuffer([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	rsp := new(bytes.Buffer)
-	cator := UserPassAuthenticator{
-		StaticCredentials{
+	cator := auth.UserPassAuthenticator{
+		Credentials: auth.StaticCredentials{
 			"foo": "bar",
 		},
 	}
@@ -49,8 +50,8 @@ func TestPasswordAuth_Valid(t *testing.T) {
 func TestPasswordAuth_Invalid(t *testing.T) {
 	req := bytes.NewBuffer([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
 	rsp := new(bytes.Buffer)
-	cator := UserPassAuthenticator{
-		StaticCredentials{
+	cator := auth.UserPassAuthenticator{
+		Credentials: auth.StaticCredentials{
 			"foo": "bar",
 		},
 	}

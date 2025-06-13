@@ -1,14 +1,15 @@
-package socks5
+package rule
 
 import (
 	"context"
 
+	"github.com/things-go/go-socks5/handler"
 	"github.com/things-go/go-socks5/statute"
 )
 
 // RuleSet is used to provide custom rules to allow or prohibit actions
 type RuleSet interface {
-	Allow(ctx context.Context, req *Request) (context.Context, bool)
+	Allow(ctx context.Context, req *handler.Request) (context.Context, bool)
 }
 
 // PermitCommand is an implementation of the RuleSet which
@@ -35,7 +36,7 @@ func NewPermitConnAndAss() RuleSet {
 }
 
 // Allow implement interface RuleSet
-func (p *PermitCommand) Allow(ctx context.Context, req *Request) (context.Context, bool) {
+func (p *PermitCommand) Allow(ctx context.Context, req *handler.Request) (context.Context, bool) {
 	switch req.Command {
 	case statute.CommandConnect:
 		return ctx, p.EnableConnect
